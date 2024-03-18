@@ -12,16 +12,12 @@ from sklearn.metrics import confusion_matrix
 import time
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
-'''
-半径16
-动量0.95      
-'''
-# 1、定义网络超参数
-EPOCH = 30     # 训练多少轮次
-BATCH_SIZE = 64       # 每次喂给的数据量
-LR = 0.001     # 学习率
-Train_Rate = 0.2       # 将训练集和测试集按比例分开
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'         # 是否使用GPU环视cpu训练
+
+EPOCH = 30     
+BATCH_SIZE = 64    
+LR = 0.001    
+Train_Rate = 0.2     
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'        
 
 cfg = {
         'Categories_Number': 12, # 类别数
@@ -65,8 +61,7 @@ print('补零后的pan图的形状：', np.shape(pan_np))
 
 # 按类别比例拆分数据集
 # label_np = label_np.astype(np.uint8)
-label_np = label_np - 1          # 标签中0类标签是未标注的像素，通过减1后将类别归到0-N，而未标注类标签变为255
-
+label_np = label_np - 1       
 label_element, element_count = np.unique(label_np, return_counts=True)   # 返回类别标签与各个类别所占的数量
 print('类标：', label_element)
 print('各类样本数：', element_count)
@@ -276,9 +271,6 @@ for epoch in range(1, EPOCH + 1):
     adjust_learning_rate(optimizer, epoch)
     test_model(model, test_loader)
 
-torch.save(model, './04_19.pkl')
-cnn = torch.load('./04_19.pkl')
-
 
 # 计算Kappa指标
 def con_mat():
@@ -327,119 +319,8 @@ def con_mat():
     print('Kappa：', Kappa)
 
 
-con_mat()
-
-# SE
-class_count_all = np.zeros(11)
-out_clour_all = np.zeros((2101, 2001, 3))
-def clour_model(cnn, all_data_loader):
-    cnn.eval()
-    for step, (ms4, pan, gt_xy) in enumerate(all_data_loader):
-        ms4 = ms4.to(device)
-        pan = pan.to(device)
-        with torch.no_grad():
-            output = cnn(ms4, pan)
-        pred_y = torch.max(output, 1)[1].cuda().data.squeeze()
-        pred_y_numpy = pred_y.cpu().numpy()
-        # print("pred_y###", pred_y_numpy)
-        gt_xy = gt_xy.numpy()
-        for k in range(len(gt_xy)):
-            if pred_y_numpy[k] == 0:
-                class_count_all[0] = class_count_all[0] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [255, 255, 0]
-            elif pred_y_numpy[k] == 1:
-                class_count_all[1] = class_count_all[1] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [255, 0, 0]
-            elif pred_y_numpy[k] == 2:
-                class_count_all[2] = class_count_all[2] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [33, 145, 237]
-            elif pred_y_numpy[k] == 3:
-                class_count_all[3] = class_count_all[3] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [0, 255, 0]
-            elif pred_y_numpy[k] == 4:
-                class_count_all[4] = class_count_all[4] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [240, 32, 160]
-            elif pred_y_numpy[k] == 5:
-                class_count_all[5] = class_count_all[5] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [221, 160, 221]
-            elif pred_y_numpy[k] == 6:
-                class_count_all[6] = class_count_all[6] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [140, 230, 240]
-            elif pred_y_numpy[k] == 7:
-                class_count_all[7] = class_count_all[7] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [0, 0, 255]
-            elif pred_y_numpy[k] == 8:
-                class_count_all[8] = class_count_all[8] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [0, 255, 255]
-            elif pred_y_numpy[k] == 9:
-                class_count_all[9] = class_count_all[9] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [127, 255, 0]
-            elif pred_y_numpy[k] == 10:
-                class_count_all[10] = class_count_all[10] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [255, 0, 255]
-    print(class_count_all)
-    cv2.imwrite("./04_19_image.png", out_clour_all)
-clour_model(model, all_data_loader)
 
 
-
-# 半图上色
-start_colour = time.time()
-class_count = np.zeros(11)
-out_clour = np.zeros((2101, 2001, 3))
-
-
-def clour_model(cnn, all_data_loader):
-    correct = 0.0
-    cnn.eval()
-    for step, (ms4, pan, gt_xy) in enumerate(all_data_loader):
-        cnn.to(device)
-        ms4 = ms4.to(device)
-        pan = pan.to(device)
-        with torch.no_grad():
-            output = cnn(ms4, pan)
-        pred_y = torch.max(output, 1)[1].to(device).data.squeeze()
-        pred_y_numpy = pred_y.cpu().numpy()
-        # print("pred_y###", pred_y_numpy)
-        gt_xy = gt_xy.numpy()
-        for k in range(len(gt_xy)):
-            if pred_y_numpy[k] == 0:
-                class_count[0] = class_count[0] + 1
-                out_clour[gt_xy[k][0]][gt_xy[k][1]] = [203, 192, 255]
-            elif pred_y_numpy[k] == 1:
-                class_count[1] = class_count[1] + 1
-                out_clour[gt_xy[k][0]][gt_xy[k][1]] = [14, 132, 241]
-            elif pred_y_numpy[k] == 2:
-                class_count[2] = class_count[2] + 1
-                out_clour[gt_xy[k][0]][gt_xy[k][1]] = [255, 255, 0]
-            elif pred_y_numpy[k] == 3:
-                class_count[3] = class_count[3] + 1
-                out_clour[gt_xy[k][0]][gt_xy[k][1]] = [0, 0, 255]
-            elif pred_y_numpy[k] == 4:
-                class_count[4] = class_count[4] + 1
-                out_clour[gt_xy[k][0]][gt_xy[k][1]] = [51, 102, 103]
-            elif pred_y_numpy[k] == 5:
-                class_count[5] = class_count[5] + 1
-                out_clour[gt_xy[k][0]][gt_xy[k][1]] = [0, 255, 0]
-            elif pred_y_numpy[k] == 6:
-                class_count[6] = class_count[6] + 1
-                out_clour[gt_xy[k][0]][gt_xy[k][1]] = [255, 0, 0]
-            elif pred_y_numpy[k] == 7:
-                class_count_all[7] = class_count_all[7] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [0, 0, 255]
-            elif pred_y_numpy[k] == 8:
-                class_count_all[8] = class_count_all[8] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [0, 255, 255]
-            elif pred_y_numpy[k] == 9:
-                class_count_all[9] = class_count_all[9] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [127, 255, 0]
-            elif pred_y_numpy[k] == 10:
-                class_count_all[10] = class_count_all[10] + 1
-                out_clour_all[gt_xy[k][0]][gt_xy[k][1]] = [255, 0, 255]
-
-    print(class_count)
-    cv2.imwrite("./04_19_image.png", out_clour)
-    print("结束")
 
 
 # clour_model(cnn, colour_loader)
